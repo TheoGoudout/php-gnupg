@@ -597,6 +597,10 @@ PHP_MINIT_FUNCTION(gnupg)
 #if GPGME_VERSION_NUMBER >= 0x010700  /* GPGME >= 1.7.0 */
 	PHP_GNUPG_REG_CONST("GNUPG_PK_EDDSA",           GPGME_PK_EDDSA);
 #endif /* gpgme >= 1.7.0 */
+#if GPGME_VERSION_NUMBER >= 0x010901  /* GPGME >= 1.9.1 */
+	PHP_GNUPG_REG_CONST("GNUPG_DELETE_ALLOW_SECRET", GPGME_DELETE_ALLOW_SECRET);
+	PHP_GNUPG_REG_CONST("GNUPG_DELETE_FORCE", GPGME_DELETE_FORCE);
+#endif /* gpgme >= 1.9.1 */
 
 	/* init gpgme subsystems and set the returned version to the constant */
 	strncpy(php_gpgme_version, gpgme_check_version(NULL), PHP_GNUPG_VERSION_BUF_SIZE);
@@ -1817,19 +1821,19 @@ PHP_FUNCTION(gnupg_deletekey)
 {
 	char *key;
 	phpc_str_size_t key_len;
-	phpc_long_t allow_secret = 0;
+	phpc_long_t flags = 0;
 	gpgme_key_t	gpgme_key;
 
 	GNUPG_GETOBJ();
 
 	if (this) {
 		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|l",
-				&key, &key_len, &allow_secret) == FAILURE) {
+				&key, &key_len, &flags) == FAILURE) {
 			return;
 		}
 	} else {
 		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rs|l",
-				&res, &key, &key_len, &allow_secret) == FAILURE) {
+				&res, &key, &key_len, &flags) == FAILURE) {
 			return;
 		}
 		GNUPG_RES_FETCH();
@@ -1839,7 +1843,7 @@ PHP_FUNCTION(gnupg_deletekey)
 		GNUPG_ERR("get_key failed");
 		return;
 	}
-	if (!PHP_GNUPG_DO(gpgme_op_delete(PHPC_THIS->ctx, gpgme_key, allow_secret))) {
+	if (!PHP_GNUPG_DO(gpgme_op_delete_ext(PHPC_THIS->ctx, gpgme_key, flags))) {
 		GNUPG_ERR("delete failed");
 		RETVAL_FALSE;
 	} else {
