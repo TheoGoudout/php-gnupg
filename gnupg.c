@@ -1837,6 +1837,56 @@ PHP_FUNCTION(gnupg_export)
 }
 /* }}} */
 
+/* {{{ gnupg_addimportstatus */
+void gnupg_addimportstatus(phpc_val imports, gpgme_import_status_t gpgme_import)
+{
+	phpc_val import;
+	PHPC_VAL_MAKE(import);
+	PHPC_ARRAY_INIT(PHPC_VAL_CAST_TO_PZVAL(import));
+
+	PHP_GNUPG_ARRAY_ADD_ASSOC_CSTR_EX(import, fingerprint, gpgme_import, fpr);
+	PHP_GNUPG_ARRAY_ADD_ASSOC_LONG(import, result, gpgme_import);
+	PHP_GNUPG_ARRAY_ADD_ASSOC_LONG(import, status, gpgme_import);
+
+	PHPC_ARRAY_ADD_ASSOC_BOOL(
+		PHPC_VAL_CAST_TO_PZVAL(import), "new",
+		gpgme_import->status & GPGME_IMPORT_NEW);
+	PHPC_ARRAY_ADD_ASSOC_BOOL(
+		PHPC_VAL_CAST_TO_PZVAL(import), "uid",
+		gpgme_import->status & GPGME_IMPORT_UID);
+	PHPC_ARRAY_ADD_ASSOC_BOOL(
+		PHPC_VAL_CAST_TO_PZVAL(import), "sig",
+		gpgme_import->status & GPGME_IMPORT_SIG);
+	PHPC_ARRAY_ADD_ASSOC_BOOL(
+		PHPC_VAL_CAST_TO_PZVAL(import), "subkey",
+		gpgme_import->status & GPGME_IMPORT_SUBKEY);
+	PHPC_ARRAY_ADD_ASSOC_BOOL(
+		PHPC_VAL_CAST_TO_PZVAL(import), "secret",
+		gpgme_import->status & GPGME_IMPORT_SECRET);
+
+	PHPC_ARRAY_ADD_NEXT_INDEX_ZVAL(
+		PHPC_VAL_CAST_TO_PZVAL(imports),
+		PHPC_VAL_CAST_TO_PZVAL(import));
+}
+/* }}} */
+
+/* {{{ gnupg_addimportsstatus */
+void gnupg_addimportsstatus(gpgme_import_status_t gpgme_import, zval * return_value)
+{
+	phpc_val imports;
+	PHPC_VAL_MAKE(imports);
+	PHPC_ARRAY_INIT(PHPC_VAL_CAST_TO_PZVAL(imports));
+
+	while (gpgme_import) {
+		gnupg_addimportstatus(imports, gpgme_import);
+		gpgme_import = gpgme_import->next;
+	}
+	PHPC_ARRAY_ADD_ASSOC_ZVAL(
+		return_value, "imports",
+		PHPC_VAL_CAST_TO_PZVAL(imports));
+}
+/* }}} */
+
 /* {{{ proto array gnupg_import(string key)
  * imports the given key and returns a status-array
  */
@@ -1877,17 +1927,25 @@ PHP_FUNCTION(gnupg_import)
 		RETURN_FALSE;
 	}
 	PHPC_ARRAY_INIT(return_value);
+
+
+	PHPC_ARRAY_ADD_ASSOC_LONG(return_value, "considered", result->considered);
+	PHPC_ARRAY_ADD_ASSOC_LONG(return_value, "no_user_id", result->no_user_id);
 	PHPC_ARRAY_ADD_ASSOC_LONG(return_value, "imported", result->imported);
+	PHPC_ARRAY_ADD_ASSOC_LONG(return_value, "imported_rsa", result->imported_rsa);
 	PHPC_ARRAY_ADD_ASSOC_LONG(return_value, "unchanged", result->unchanged);
-	PHPC_ARRAY_ADD_ASSOC_LONG(return_value, "newuserids", result->new_user_ids);
-	PHPC_ARRAY_ADD_ASSOC_LONG(return_value, "newsubkeys", result->new_sub_keys);
-	PHPC_ARRAY_ADD_ASSOC_LONG(return_value, "secretimported", result->secret_imported);
-	PHPC_ARRAY_ADD_ASSOC_LONG(return_value, "secretunchanged", result->secret_unchanged);
-	PHPC_ARRAY_ADD_ASSOC_LONG(return_value, "newsignatures", result->new_signatures);
-	PHPC_ARRAY_ADD_ASSOC_LONG(return_value, "skippedkeys", result->skipped_new_keys);
-	if (result->imports && result->imports->fpr) {
-		PHPC_ARRAY_ADD_ASSOC_CSTR(return_value,	"fingerprint", result->imports->fpr);
-	}
+	PHPC_ARRAY_ADD_ASSOC_LONG(return_value, "new_user_ids", result->new_user_ids);
+	PHPC_ARRAY_ADD_ASSOC_LONG(return_value, "new_sub_keys", result->new_sub_keys);
+	PHPC_ARRAY_ADD_ASSOC_LONG(return_value, "new_signatures", result->new_signatures);
+	PHPC_ARRAY_ADD_ASSOC_LONG(return_value, "new_revocations", result->new_revocations);
+	PHPC_ARRAY_ADD_ASSOC_LONG(return_value, "secret_read", result->secret_read);
+	PHPC_ARRAY_ADD_ASSOC_LONG(return_value, "secret_imported", result->secret_imported);
+	PHPC_ARRAY_ADD_ASSOC_LONG(return_value, "secret_unchanged", result->secret_unchanged);
+	PHPC_ARRAY_ADD_ASSOC_LONG(return_value, "not_imported", result->not_imported);
+
+	gnupg_addimportsstatus(result->imports, return_value);
+
+	PHPC_ARRAY_ADD_ASSOC_LONG(return_value, "skipped_v3_keys", result->skipped_v3_keys);
 }
 /* }}} */
 
